@@ -1,0 +1,13 @@
+{
+  "_fonte": "Nome do produto como está cadastrado na Maisfy (conferido no checkout de cada Kit em 30/09). Não inventar.",
+  "kits": {
+    "p0": ["Kit Antidemissão"],
+    "p1": ["Kit do Gestor sem Crachá"],
+    "p2": ["Kit de Ferramentas de IA no Trabalho"],
+    "p3": ["Kit do Domingo Sem Segunda"],
+    "p4": ["Kit da Acabativa de Bolso"],
+    "p5": ["Kit Delegar sem Retrabalho"],
+    "p10": ["Kit do Profissional Indispensável"],
+    "combo": ["Combo Anti-Caos Pro"]
+  }
+}
