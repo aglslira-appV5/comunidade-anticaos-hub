@@ -1,0 +1,44 @@
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Global allowlist for upstream files and test fixtures"
+paths = [
+    '''(^|/)\.claude/''',
+    '''(^|/)docs/content/''',
+    '''(^|/)docs/public/''',
+    '''(^|/)apps/cli/''',
+    '''(^|/)apps/api/\.env\.example''',
+    '''(^|/)apps/api/alembic\.ini''',
+    '''(^|/)apps/api/config/config\.yaml''',
+    '''(^|/)apps/api/docker-entrypoint\.sh''',
+    '''(^|/)apps/api/scripts/migrate\.py''',
+    '''(^|/)apps/api/src/tests/core/test_events_database\.py''',
+    '''(^|/)apps/api/src/tests/security/''',
+    '''(^|/)__pycache__/''',
+    '''\.pyc$'''
+]
+regexes = [
+    '''\{target_pass\}''',
+    '''test_maisfy_secret_key_123'''
+]
+
+[[rules]]
+id = "database-connection-string"
+description = "Detected Database Connection URL with embedded credentials"
+regex = '''(?i)(?:postgres(?:ql)?|mysql|mongodb(?:\+srv)?|redis):\/\/[^\s:@\/]+:([^\s:@\/]+)@[^\s\/]+'''
+secretGroup = 1
+keywords = [
+    "postgres",
+    "postgresql",
+    "mysql",
+    "mongodb",
+    "redis"
+]
+
+[rules.allowlist]
+description = "Allow placeholders in connection strings"
+regexes = [
+    '''\{target_pass\}''',
+    '''^senha$'''
+]
