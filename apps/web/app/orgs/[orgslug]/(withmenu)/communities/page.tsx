@@ -1,0 +1,130 @@
+import { getOrganizationContextInfo } from '@services/organizations/orgs'
+import { Metadata } from 'next'
+import { redirect } from 'next/navigation'
+import { getServerSession } from '@/lib/auth/server'
+import { getCommunities } from '@services/communities/communities'
+import { getUriWithOrg } from '@services/config/config'
+import { getOrgThumbnailMediaDirectory, getOrgOgImageMediaDirectory } from '@services/media/media'
+import { getOrgSeoConfig, buildPageTitle, buildBreadcrumbJsonLd } from '@/lib/seo/utils'
+import { getServerCanonicalUrl } from '@/lib/seo/utils.server'
+import { getIdiomaServidor } from '@/lib/tituloAba'
+import { JsonLd } from '@components/SEO/JsonLd'
+import CommunitiesClient from './communities'
+import ComunidadeSoAlunos, { ehSemProduto } from '@components/Objects/Communities/ComunidadeSoAlunos'
+
+type MetadataProps = {
+  params: Promise<{ orgslug: string }>
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+}
+
+export async function generateMetadata(props: MetadataProps): Promise<Metadata> {
+  const params = await props.params
+  const org = await getOrganizationContextInfo(params.orgslug, {
+    revalidate: 120,
+    tags: ['organizations'],
+  })
+
+  const seoConfig = getOrgSeoConfig(org)
+
+  const ogImageUrl = seoConfig.default_og_image
+    ? getOrgOgImageMediaDirectory(org?.org_uuid, seoConfig.default_og_image)
+    : null
+  const imageUrl = ogImageUrl || getOrgThumbnailMediaDirectory(org?.org_uuid, org?.thumbnail_image)
+  const idioma = await getIdiomaServidor(props.searchParams)
+  const title = buildPageTitle('Comunidade', org.name, seoConfig, idioma)
+  const description = seoConfig.default_meta_description || `Discussion communities from ${org.name}`
+  const canonical = await getServerCanonicalUrl(params.orgslug, '/communities')
+
+  return {
+    title,
+    description,
+    robots: {
+      index: !seoConfig.noindex_communities,
+      follow: true,
+      nocache: true,
+      googleBot: {
+        index: !seoConfig.noindex_communities,
+        follow: true,
+        'max-image-preview': 'large',
+      },
+    },
+    alternates: {
+      canonical,
+    },
+    openGraph: {
+      title,
+      description,
+      type: 'website',
+      images: [
+        {
+          url: imageUrl,
+          width: 800,
+          height: 600,
+          alt: org.name,
+        },
+      ],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: [imageUrl],
+      ...(seoConfig.twitter_handle && { site: seoConfig.twitter_handle }),
+    },
+  }
+}
+
+const CommunitiesPage = async (params: any) => {
+  const session = await getServerSession()
+  const access_token = session?.tokens?.access_token
+  const orgslug = (await params.params).orgslug
+  const org = await getOrganizationContextInfo(orgslug, {
+    revalidate: 120,
+    tags: ['organizations'],
+  })
+  const org_id = org.id
+
+  let communities = []
+  let semProduto = false
+  try {
+    communities = await getCommunities(
+      org_id,
+      1,
+      100,
+      { revalidate: 120, tags: ['communities'] },
+      access_token ? access_token : undefined
+    )
+  } catch (error) {
+    console.error('Failed to fetch communities:', error)
+    communities = []
+    semProduto = ehSemProduto(error)
+  }
+
+  // 553 · convidado e vencido: a Comunidade é só para alunos com produto ativo.
+  if (semProduto) {
+    return <ComunidadeSoAlunos />
+  }
+
+  if (communities && communities.length === 1 && communities[0]?.community_uuid) {
+    const communityId = communities[0].community_uuid.replace('community_', '')
+    redirect(getUriWithOrg(orgslug, `/community/${communityId}`))
+  }
+
+  const breadcrumbJsonLd = buildBreadcrumbJsonLd([
+    { name: 'Home', url: await getServerCanonicalUrl(orgslug, '/') },
+    { name: 'Communities', url: await getServerCanonicalUrl(orgslug, '/communities') },
+  ])
+
+  return (
+    <>
+      <JsonLd data={breadcrumbJsonLd} />
+      <CommunitiesClient
+        communities={communities || []}
+        orgslug={orgslug}
+        org_id={org_id}
+      />
+    </>
+  )
+}
+
+export default CommunitiesPage
