@@ -1,0 +1,512 @@
+/* Estilos Titânio Vivo + Impressão A4 (@media print) · Relatório do trimestre (616) */
+.wrap {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 24px 16px 64px;
+  color: #F4F4F5;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  min-height: 100vh;
+}
+
+.topBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.actionsRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.btnPrimary {
+  background: #D4AF37;
+  color: #111111;
+  border: 1px solid #D4AF37;
+  border-radius: 10px;
+  padding: 10px 18px;
+  font-weight: 800;
+  font-size: 13px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  transition: opacity 0.2s;
+}
+
+.btnPrimary:hover {
+  opacity: 0.92;
+}
+
+.btnSecondary {
+  border: 1px solid #B8941F;
+  background: transparent;
+  color: #D4AF37;
+  border-radius: 10px;
+  padding: 10px 18px;
+  font-weight: 800;
+  font-size: 13px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  transition: background 0.2s;
+}
+
+.btnSecondary:hover {
+  background: rgba(212, 175, 55, 0.14);
+}
+
+.seletorWrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.seletorLabel {
+  font-size: 12px;
+  font-weight: 700;
+  color: #A1A1AA;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.seletorSelect {
+  background: #15151b;
+  color: #F4F4F5;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+  padding: 7px 12px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.card {
+  background: #15151b;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  padding: 24px;
+  margin-bottom: 18px;
+}
+
+.heroCard {
+  background: radial-gradient(800px 260px at 10% 0%, #3a2f12 0%, transparent 60%), #15151b;
+  border: 1px solid rgba(212, 175, 55, 0.3);
+}
+
+.titulo {
+  margin: 0 0 6px;
+  font-size: 26px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  color: #FFFFFF;
+}
+
+.subtitulo {
+  margin: 0 0 14px;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #D4AF37;
+}
+
+.abertura {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.55;
+  color: #E4E4E7;
+}
+
+.secaoTitulo {
+  margin: 0 0 14px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #D4AF37;
+}
+
+.vazio {
+  margin: 0;
+  font-size: 14px;
+  color: #A1A1AA;
+}
+
+/* O SINAL */
+.sinalBox {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sinalComparacao {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 20px;
+}
+
+.sinalMedicao {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: #1b1b22;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 10px 14px;
+}
+
+.sinalBars {
+  display: inline-flex;
+  gap: 4px;
+  align-items: flex-end;
+  height: 24px;
+}
+
+.sinalBar {
+  width: 7px;
+  border-radius: 2px;
+  background: #33333e;
+  display: block;
+}
+
+.sinalBarOn {
+  background: #D4AF37;
+}
+
+.sinalLinha {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+  color: #FFFFFF;
+}
+
+.sinalFrase {
+  margin: 0;
+  font-size: 14px;
+  color: #7ee2a8;
+  font-weight: 600;
+}
+
+/* APPS INSTALADOS */
+.appsLista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.appRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  background: #1b1b22;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 12px 16px;
+  flex-wrap: wrap;
+}
+
+.appInfo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.appIcone {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #f3dc8a, #D4AF37 45%, #8a6d17);
+  color: #111111;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.appTextoPrincipal {
+  font-size: 14px;
+  font-weight: 800;
+  color: #FFFFFF;
+}
+
+.appCompetencia {
+  font-size: 12px;
+  color: #A1A1AA;
+  margin-top: 2px;
+}
+
+.appCertLink {
+  font-size: 12.5px;
+  font-weight: 800;
+  color: #D4AF37;
+  text-decoration: none;
+}
+
+.appCertLink:hover {
+  text-decoration: underline;
+}
+
+/* CASOS REAIS */
+.casosGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.casoCard {
+  background: #1b1b22;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-left: 3px solid #D4AF37;
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+.casoRotulo {
+  color: #D4AF37;
+  font-weight: 800;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 6px;
+}
+
+.casoTexto {
+  margin: 0 0 8px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: #F4F4F5;
+}
+
+.casoResultado {
+  margin-top: auto;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #7ee2a8;
+}
+
+/* ONLINE */
+.onlineLinha {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: #F4F4F5;
+}
+
+/* AVALIAÇÕES */
+.avaliacoesGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.avaliacaoCard {
+  background: #1b1b22;
+  border-radius: 12px;
+  padding: 14px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+}
+
+.avaliacaoEstrelas {
+  color: #D4AF37;
+  font-size: 14px;
+  letter-spacing: 2px;
+  margin-bottom: 6px;
+}
+
+.avaliacaoTexto {
+  margin: 0 0 10px;
+  color: #F4F4F5;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+.avaliacaoQuem {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: auto;
+  font-size: 12px;
+  color: #A1A1AA;
+}
+
+.avaliacaoIniciais {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #33333e;
+  display: grid;
+  place-items: center;
+  font-style: normal;
+  font-weight: 800;
+  color: #DDDDE2;
+  flex-shrink: 0;
+}
+
+/* RODAPÉ */
+.footer {
+  text-align: center;
+  padding: 24px 20px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #2a2210, #15151b);
+  border: 1px solid rgba(212, 175, 55, 0.45);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+}
+
+.rodapeTexto {
+  margin: 0;
+  font-size: 13.5px;
+  color: #E4E4E7;
+}
+
+.licencaLink {
+  font-size: 13px;
+  font-weight: 800;
+  color: #D4AF37;
+  text-decoration: none;
+}
+
+.licencaLink:hover {
+  text-decoration: underline;
+}
+
+.fechoTexto {
+  margin: 4px 0 0;
+  font-size: 12.5px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #A1A1AA;
+}
+
+.erroCard {
+  background: #15151b;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  padding: 48px 24px;
+  text-align: center;
+  max-width: 560px;
+  margin: 64px auto;
+}
+
+.erroCard h2 {
+  font-size: 20px;
+  margin: 0 0 20px;
+  color: #FFFFFF;
+}
+
+/* IMPRESSÃO A4 RETRATO (@media print) */
+@page {
+  size: A4 portrait;
+  margin: 14mm;
+}
+
+@media print {
+  :global(html),
+  :global(body) {
+    background: #FFFFFF !important;
+    color: #000000 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  :global(body > header),
+  :global(nav),
+  :global(aside),
+  :global(body > footer),
+  .noPrint,
+  .topBar {
+    display: none !important;
+  }
+
+  .wrap {
+    max-width: 100%;
+    padding: 0;
+    margin: 0;
+    color: #000000 !important;
+    background: #FFFFFF !important;
+    min-height: auto;
+  }
+
+  .card,
+  .heroCard,
+  .footer,
+  .sinalMedicao,
+  .appRow,
+  .casoCard,
+  .avaliacaoCard {
+    background: #FFFFFF !important;
+    color: #000000 !important;
+    border: 1px solid #D4D4D8 !important;
+    box-shadow: none !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+    margin-bottom: 12px;
+    padding: 14px 16px;
+  }
+
+  .titulo,
+  .sinalLinha,
+  .appTextoPrincipal,
+  .casoTexto,
+  .onlineLinha,
+  .avaliacaoTexto,
+  .rodapeTexto {
+    color: #000000 !important;
+  }
+
+  .subtitulo,
+  .secaoTitulo,
+  .casoRotulo,
+  .sinalFrase,
+  .casoResultado,
+  .licencaLink,
+  .appCertLink {
+    color: #1F2937 !important;
+  }
+
+  .abertura,
+  .vazio,
+  .appCompetencia,
+  .avaliacaoQuem,
+  .fechoTexto {
+    color: #3F3F46 !important;
+  }
+
+  .sinalBar {
+    background: #E4E4E7 !important;
+  }
+
+  .sinalBarOn {
+    background: #111111 !important;
+  }
+
+  .appIcone,
+  .avaliacaoIniciais {
+    background: #F4F4F5 !important;
+    color: #111111 !important;
+    border: 1px solid #D4D4D8 !important;
+  }
+
+  .avaliacaoEstrelas {
+    color: #111111 !important;
+  }
+}
