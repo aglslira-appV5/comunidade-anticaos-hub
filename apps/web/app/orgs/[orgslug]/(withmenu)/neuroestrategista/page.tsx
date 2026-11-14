@@ -1,0 +1,38 @@
+// 692: endereço novo da área Neuroestrategista (o antigo /neuroacabativa continua abrindo a mesma página).
+import React from 'react'
+import { Metadata } from 'next'
+import { getOrganizationContextInfo } from '@services/organizations/orgs'
+import NeuroacabativaClient from '@/components/Objects/Neuro/NeuroacabativaClient'
+
+export const dynamic = 'force-dynamic'
+
+type MetadataProps = {
+  params: Promise<{ orgslug: string }>
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+}
+
+export async function generateMetadata(props: MetadataProps): Promise<Metadata> {
+  const params = await props.params
+  let orgName = 'anticaos'
+  try {
+    const org = await getOrganizationContextInfo(params.orgslug, {
+      revalidate: 120,
+      tags: ['organizations'],
+    })
+    if (org?.name) orgName = org.name
+  } catch {
+    // Fallback gracioso em ambientes sem backend
+  }
+  return {
+    title: 'Neuroestrategista · ' + orgName,
+    description: 'O manual para você pensar como estrategista no trabalho.',
+  }
+}
+
+const NeuroacabativaPage = async (props: any) => {
+  const orgslug = (await props.params).orgslug
+
+  return <NeuroacabativaClient orgslug={orgslug} />
+}
+
+export default NeuroacabativaPage
