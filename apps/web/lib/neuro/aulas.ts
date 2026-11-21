@@ -1,0 +1,234 @@
+export interface AulaNeuro {
+  aula: number;
+  slug: string;
+  titulo: string;
+  tese: string;
+  pergunta?: string;
+  resumoProvisorio: boolean;
+}
+
+export interface AulaProgressoInput {
+  aula: number;
+  acesa: boolean;
+  caso?: string | null;
+  acesa_em?: string | null;
+}
+
+export const AULAS_NEURO: AulaNeuro[] = [
+  {
+    aula: 1,
+    slug: "missao-projeto-tarefa",
+    titulo: "Missão > Projeto > Tarefa",
+    tese: "Os três níveis de entrega, a fórmula de cada um e o teste de bolso, para nunca mais chamar tarefa de meta.",
+    resumoProvisorio: true,
+  },
+  {
+    aula: 2,
+    slug: "as-8-acabativas",
+    titulo: "As 8 Acabativas",
+    tese: "Todo cartão de trabalho tem um destino: os oito destinos, o que cada um significa e o que devolve.",
+    resumoProvisorio: true,
+  },
+  {
+    aula: 5,
+    slug: "hipotese-vira-fato",
+    titulo: "Hipótese vira fato",
+    tese: "Tudo o que você escreve sobre o chefe nasce hipótese e só vira fato quando você testa. O Ciclo das 4 Batidas é o teste.",
+    resumoProvisorio: true,
+  },
+  {
+    aula: 6,
+    slug: "como-usar-o-canvas",
+    titulo: "Como funcionam os canvas",
+    tese: "O que todo canvas do anticaos tem: um antes e depois, a aula e a folha juntas, o \"eu acho\" até alguém confirmar, tudo salvo sozinho e o certificado quando você termina o que o Kit pede.",
+    resumoProvisorio: true,
+  },
+  {
+    aula: 7,
+    slug: "estrategico-operacional",
+    titulo: "Estratégico × Operacional",
+    tese: "O que faz o chefe ver você como estratégico ou operacional (missão antecipa, plano reage) e as três práticas de quem antecipa.",
+    resumoProvisorio: true,
+  },
+  {
+    aula: 8,
+    slug: "mcl-matriz-de-clientes-do-lider",
+    titulo: "MCL · Matriz de Clientes do Líder",
+    tese: "Os três grupos que \"compram\" o seu trabalho: Avaliadores, Executores e Conexão. E o que cada um compra.",
+    resumoProvisorio: true,
+  },
+  {
+    aula: 10,
+    slug: "caixa-de-entrada-ze-cacareco-teo-tarefa-e-mira-missao",
+    titulo: "Caixa de entrada: Zé Cacareco, Téo Tarefa e Mira Missão",
+    tese: "Tudo o que entra na sua cabeça tem um dos três donos. E quem mandou na sua semana diz se você foi estratégico ou operacional.",
+    resumoProvisorio: true,
+  },
+  {
+    aula: 11,
+    slug: "a-primazia-da-percepcao",
+    titulo: "A primazia da percepção",
+    tese: "Na avaliação, o que quem decide percebe vem antes do que você fez. Isso não é injustiça, é o mecanismo: o seu trabalho é alimentar a percepção com evidência.",
+    resumoProvisorio: true,
+  },
+  {
+    aula: 12,
+    slug: "o-que-e-o-wi-fi-humano",
+    titulo: "O que é o Wi-Fi Humano",
+    tese: "A competência de se adaptar ao outro, ao contexto e à mudança: a mesma ideia chega de um jeito diferente em cada pessoa, e quem entende isso lidera pra cima, pro lado, pra baixo e pra dentro.",
+    pergunta: "Cite uma ou duas pessoas com quem você vai mudar o jeito de se conectar e de se comunicar. O que você vai fazer pra liderar essas pessoas?",
+    resumoProvisorio: true,
+  },
+];
+
+export const AULAS_MAP = new Map<number, AulaNeuro>(
+  AULAS_NEURO.map((a) => [a.aula, a])
+);
+
+export const ORDEM_SUGERIDA = [12, 1, 2, 5, 6, 7, 8, 10, 11];
+
+export const OBRIGATORIAS_P10 = [1, 7, 11, 5, 6];
+
+export const MIN_CASO = 20;
+
+export function podeAcender(texto: string | null | undefined): boolean {
+  return (texto ?? "").trim().length >= MIN_CASO;
+}
+
+export function progresso(aulas: Array<{ aula: number; acesa: boolean }>): {
+  acesas: number;
+  total: number;
+  licencaLiberada: boolean;
+} {
+  const acesas = aulas.filter((a) => a.acesa).length;
+  const total = AULAS_NEURO.length;
+  return {
+    acesas,
+    total,
+    licencaLiberada: acesas >= total,
+  };
+}
+
+export function faltamParaP10(
+  aulas: Array<{ aula: number; acesa: boolean }>
+): number[] {
+  const acesasSet = new Set(aulas.filter((a) => a.acesa).map((a) => a.aula));
+  return OBRIGATORIAS_P10.filter((aulaNum) => !acesasSet.has(aulaNum));
+}
+
+export type IdiomaNeuro = "pt" | "es" | "en";
+
+export function normalizarIdiomaNeuro(idioma?: string | null): IdiomaNeuro {
+  const limpo = String(idioma || "pt").trim().toLowerCase();
+  if (limpo.startsWith("es")) return "es";
+  if (limpo.startsWith("en")) return "en";
+  return "pt";
+}
+
+export const AULAS_TRADUCOES: Record<
+  Exclude<IdiomaNeuro, "pt">,
+  Record<number, { titulo: string; tese: string }>
+> = {
+  es: {
+    12: {
+      titulo: "Qué es el Wi-Fi Humano",
+      tese: "La competencia de adaptarse al otro, al contexto y al cambio: la misma idea llega de una manera diferente a cada persona, y quien entiende eso lidera hacia arriba, hacia el lado, hacia abajo y hacia adentro.",
+    },
+    1: {
+      titulo: "Misión > Proyecto > Tarea",
+      tese: "Los tres niveles de entrega, la fórmula de cada uno y la prueba de bolsillo, para nunca más llamar meta a una tarea.",
+    },
+    2: {
+      titulo: "Las 8 Acabativas",
+      tese: "Toda tarjeta de trabajo tiene un destino: los ocho destinos, qué significa cada uno y qué devuelve.",
+    },
+    5: {
+      titulo: "La hipótesis se vuelve hecho",
+      tese: "Todo lo que escribes sobre tu jefe nace como hipótesis y solo se vuelve hecho cuando lo pruebas. El Ciclo de los 4 Latidos es la prueba.",
+    },
+    6: {
+      titulo: "Cómo funcionan los canvas",
+      tese: "Lo que tiene todo canvas de anticaos: un antes y un después, la clase y la hoja juntas, el \"yo creo\" hasta que alguien confirme, todo guardado solo y el certificado cuando terminas lo que el Kit pide.",
+    },
+    7: {
+      titulo: "Estratégico × Operativo",
+      tese: "Lo que hace que tu jefe te vea como estratégico u operativo (la misión anticipa, el plan reacciona) y las tres prácticas de quien anticipa.",
+    },
+    8: {
+      titulo: "MCL · Matriz de Clientes del Líder",
+      tese: "Los tres grupos que \"compran\" tu trabajo: Evaluadores, Ejecutores y Conexión. Y qué compra cada uno.",
+    },
+    10: {
+      titulo: "Bandeja de entrada: Zé Cachivache, Teo Tarea y Mira Misión",
+      tese: "Todo lo que entra en tu cabeza tiene uno de los tres dueños. Y quien mandó en tu semana dice si fuiste estratégico u operativo.",
+    },
+    11: {
+      titulo: "La primacía de la percepción",
+      tese: "En la evaluación, lo que percibe quien decide viene antes de lo que hiciste. Eso no es injusticia, es el mecanismo: tu trabajo es alimentar la percepción con evidencia.",
+    },
+  },
+  en: {
+    12: {
+      titulo: "What Human Wi-Fi Is",
+      tese: "The competence of adapting to others, context, and change: the same idea lands differently with each person, and those who understand this lead up, across, down, and within.",
+    },
+    1: {
+      titulo: "Mission > Project > Task",
+      tese: "The three delivery levels, the formula for each one, and the pocket test, so you never call a task a goal again.",
+    },
+    2: {
+      titulo: "The 8 Finishers",
+      tese: "Every work card has a destination: the eight destinations, what each one means, and what it gives back.",
+    },
+    5: {
+      titulo: "Hypothesis becomes fact",
+      tese: "Everything you write about your manager starts as a hypothesis and only becomes fact when tested. The 4-Beat Cycle is the test.",
+    },
+    6: {
+      titulo: "How the canvases work",
+      tese: "What every anticaos canvas has: a before and after, the lesson and the sheet together, \"I think\" until someone confirms, everything saved automatically, and the certificate when you finish what the Kit asks.",
+    },
+    7: {
+      titulo: "Strategic × Operational",
+      tese: "What makes your manager see you as strategic or operational (mission anticipates, plan reacts) and the three practices of those who anticipate.",
+    },
+    8: {
+      titulo: "LCM · Leader Customer Matrix",
+      tese: "The three groups that \"buy\" your work: Evaluators, Executors, and Connection. And what each one buys.",
+    },
+    10: {
+      titulo: "Inbox: Junk Joe, Task Theo, and Mission Mira",
+      tese: "Everything that enters your head has one of three owners. And whoever ruled your week tells whether you were strategic or operational.",
+    },
+    11: {
+      titulo: "The primacy of perception",
+      tese: "In performance reviews, what the decision-maker perceives comes before what you did. That is not unfairness, it is the mechanism: your job is to feed perception with evidence.",
+    },
+  },
+};
+
+export function aulaNeuroNoIdioma<
+  T extends { aula: number; titulo: string; tese: string; pergunta?: string }
+>(aula: T, idioma?: string | null): T & { pergunta?: string } {
+  const lang = normalizarIdiomaNeuro(idioma);
+  const def = AULAS_MAP.get(aula.aula);
+  const pergunta = aula.pergunta ?? def?.pergunta;
+  if (lang === "pt") {
+    if (!def) return aula;
+    return { ...aula, titulo: def.titulo, tese: def.tese, ...(pergunta ? { pergunta } : {}) };
+  }
+  const trad = AULAS_TRADUCOES[lang]?.[aula.aula];
+  if (!trad) return pergunta ? { ...aula, pergunta } : aula;
+  return {
+    ...aula,
+    titulo: trad.titulo,
+    tese: trad.tese,
+    ...(pergunta ? { pergunta } : {}),
+  };
+}
+
+export function aulasNeuroNoIdioma<
+  T extends { aula: number; titulo: string; tese: string }
+>(aulas: T[], idioma?: string | null): T[] {
+  return aulas.map((a) => aulaNeuroNoIdioma(a, idioma));
+}
