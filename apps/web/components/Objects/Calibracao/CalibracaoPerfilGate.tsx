@@ -1,0 +1,1424 @@
+'use client'
+
+import React, { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { usePathname, useSearchParams } from 'next/navigation'
+import {
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  Lock,
+  Mic,
+  Sparkles,
+  Unlock,
+  Loader2,
+} from 'lucide-react'
+import { useLHSession } from '@components/Contexts/LHSessionContext'
+import { getAPIUrl } from '@services/config/config'
+import { RequestBodyWithAuthHeader } from '@services/utils/ts/requests'
+import {
+  chaveCalibracaoMe,
+  chaveRascunhoCalibracao,
+  passoInicialCalibracao,
+  TOTAL_TELAS_CALIBRACAO,
+  ASSINATURA_ABERTURA_ENTRADA,
+  deveAbrirCalibracaoCenario,
+  deveBloquearEntradaComCalibracao,
+  EstadoCalibracaoMe,
+  OPCOES_FAIXA_IDADE,
+  OPCOES_GATILHOS_30D,
+  OPCOES_POSICAO_ATUAL,
+  OPCOES_PROXIMO_PASSO,
+  OPCOES_SALARIO_ATUAL,
+  OPCOES_SALARIO_SONHOS,
+  OPCOES_SETOR_ATUACAO,
+  OPCOES_TAMANHO_EQUIPE,
+  OPCOES_TEMPO_CARGO,
+  OPCOES_TENTATIVAS_ANTERIORES,
+  OPCOES_TIPO_EMPRESA,
+  TEXTO_ABERTURA_ENTRADA,
+  TEXTO_AUTORIZACAO_ANONIMA,
+  TEXTO_CONFIDENCIALIDADE_EMPRESA,
+  TITULO_CALIBRACAO_ENTRADA,
+} from '@/lib/anticaos/calibracao'
+
+interface RespostasCalibracaoRascunho {
+  posicaoAtual?: string
+  cargoExato?: string
+  tamanhoEquipe?: string
+  tempoCargo?: string
+  faixaIdade?: string
+  salarioAtual?: string
+  salarioSonhos?: string
+  gatilhos30d?: string[]
+  gatilhosOutro?: string
+  tentativas?: string[]
+  pensamentoMedoCasa?: string
+  vidaIdeal1Ano?: string
+  proximoPasso?: string
+  autorizacaoUso?: boolean
+  tipoEmpresa?: string
+  setorAtuacao?: string
+  setorOutro?: string
+  nomeEmpresa?: string
+}
+
+// 679 · no fim do questionário de boas-vindas, o trailer do movimento (André, 03/11 22h12, OK final).
+// Os vídeos moram na home (tarefa 678). Horizontal no computador, vertical no celular; só baixa quando a pessoa aperta o play.
+export const TRAILER_BOAS_VINDAS = {
+  horizontal: 'https://souanticaos.app/assets/video/trailer-horizontal.mp4',
+  vertical: 'https://souanticaos.app/assets/video/trailer-vertical.mp4',
+  capaHorizontal: 'https://souanticaos.app/assets/video/trailer-horizontal.webp',
+  capaVertical: 'https://souanticaos.app/assets/video/trailer-vertical.webp',
+}
+
+async function fetchCalibracaoMe(accessToken?: string): Promise<EstadoCalibracaoMe | null> {
+  if (!accessToken) return null
+  try {
+    const res = await fetch(
+      `${getAPIUrl()}calibracao/me`,
+      RequestBodyWithAuthHeader('GET', null, null, accessToken)
+    )
+    if (!res.ok) return null
+    return (await res.json()) as EstadoCalibracaoMe
+  } catch {
+    return null
+  }
+}
+
+export function CalibracaoPerfilGate() {
+  const { t } = useTranslation()
+  const session = useLHSession() as any
+  const accessToken = session?.data?.tokens?.access_token
+  const userId = session?.data?.user?.id
+  const chaveCalibracao = chaveCalibracaoMe(userId)
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const queryClient = useQueryClient()
+
+  const forcePreview = searchParams?.get('calibracao') === '1'
+
+  const { data: estado } = useQuery<EstadoCalibracaoMe | null>({
+    queryKey: chaveCalibracao,
+    queryFn: () => fetchCalibracaoMe(accessToken),
+    enabled: session?.status === 'authenticated' && !!accessToken && userId != null,
+    staleTime: Infinity,
+    gcTime: Infinity,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    retry: false,
+  })
+
+  const [passo, setPasso] = useState<number>(1)
+  const [posicaoAtual, setPosicaoAtual] = useState<string>('')
+  const [cargoExato, setCargoExato] = useState<string>('')
+  const [tamanhoEquipe, setTamanhoEquipe] = useState<string>('')
+  const [tempoCargo, setTempoCargo] = useState<string>('')
+  const [faixaIdade, setFaixaIdade] = useState<string>('')
+  const [salarioAtual, setSalarioAtual] = useState<string>('')
+  const [salarioSonhos, setSalarioSonhos] = useState<string>('')
+  const [gatilhos30d, setGatilhos30d] = useState<string[]>([])
+  const [gatilhosOutro, setGatilhosOutro] = useState<string>('')
+  const [tentativas, setTentativas] = useState<string[]>([])
+  const [pensamentoMedoCasa, setPensamentoMedoCasa] = useState<string>('')
+  const [vidaIdeal1Ano, setVidaIdeal1Ano] = useState<string>('')
+  const [proximoPasso, setProximoPasso] = useState<string>('')
+  const [autorizacaoUso, setAutorizacaoUso] = useState<boolean>(false)
+  const [tipoEmpresa, setTipoEmpresa] = useState<string>('')
+  const [setorAtuacao, setSetorAtuacao] = useState<string>('')
+  const [setorOutro, setSetorOutro] = useState<string>('')
+  const [nomeEmpresa, setNomeEmpresa] = useState<string>('')
+
+  const [enviando, setEnviando] = useState<boolean>(false)
+  const [erroMsg, setErroMsg] = useState<string>('')
+  const [calibrandoFinal, setCalibrandoFinal] = useState<boolean>(false)
+  const [entradaSalva, setEntradaSalva] = useState<Record<string, unknown> | null>(null)
+  const [cenarioSalvo, setCenarioSalvo] = useState<Record<string, unknown> | null>(null)
+  const [dispensadoLocal, setDispensadoLocal] = useState<boolean>(false)
+  const [assistiuTrailer, setAssistiuTrailer] = useState<boolean>(false)
+  const [editandoManual, setEditandoManual] = useState<boolean>(false)
+  const hidratadoRef = useRef<string>('')
+  const carregadoRascunhoRef = useRef<boolean>(false)
+
+  const aplicarRespostas = (r: RespostasCalibracaoRascunho) => {
+    if (r.posicaoAtual !== undefined) setPosicaoAtual(r.posicaoAtual)
+    if (r.cargoExato !== undefined) setCargoExato(r.cargoExato)
+    if (r.tamanhoEquipe !== undefined) setTamanhoEquipe(r.tamanhoEquipe)
+    if (r.tempoCargo !== undefined) setTempoCargo(r.tempoCargo)
+    if (r.faixaIdade !== undefined) setFaixaIdade(r.faixaIdade)
+    if (r.salarioAtual !== undefined) setSalarioAtual(r.salarioAtual)
+    if (r.salarioSonhos !== undefined) setSalarioSonhos(r.salarioSonhos)
+    if (r.gatilhos30d !== undefined) setGatilhos30d(r.gatilhos30d)
+    if (r.gatilhosOutro !== undefined) setGatilhosOutro(r.gatilhosOutro)
+    if (r.tentativas !== undefined) setTentativas(r.tentativas)
+    if (r.pensamentoMedoCasa !== undefined) setPensamentoMedoCasa(r.pensamentoMedoCasa)
+    if (r.vidaIdeal1Ano !== undefined) setVidaIdeal1Ano(r.vidaIdeal1Ano)
+    if (r.proximoPasso !== undefined) setProximoPasso(r.proximoPasso)
+    if (r.autorizacaoUso !== undefined) setAutorizacaoUso(r.autorizacaoUso)
+    if (r.tipoEmpresa !== undefined) setTipoEmpresa(r.tipoEmpresa)
+    if (r.setorAtuacao !== undefined) setSetorAtuacao(r.setorAtuacao)
+    if (r.setorOutro !== undefined) setSetorOutro(r.setorOutro)
+    if (r.nomeEmpresa !== undefined) setNomeEmpresa(r.nomeEmpresa)
+  }
+
+  useEffect(() => {
+    const idChave = userId ?? 'sem-conta'
+    const assinatura = `${idChave}:${estado ? `${estado.entrada_concluida}-${estado.cenario_concluido}` : 'sem-estado'}`
+    if (hidratadoRef.current === assinatura || editandoManual) return
+    hidratadoRef.current = assinatura
+
+    let rascunho: { passo?: number; respostas?: RespostasCalibracaoRascunho } | null = null
+    try {
+      const bruto = window.localStorage.getItem(chaveRascunhoCalibracao(idChave))
+      if (bruto) rascunho = JSON.parse(bruto)
+    } catch {
+      rascunho = null
+    }
+
+    const inicial = passoInicialCalibracao(estado, rascunho)
+    if (inicial > 0) {
+      setPasso(inicial)
+    } else if (forcePreview) {
+      const pRascunho = Number(rascunho?.passo)
+      setPasso(
+        Number.isInteger(pRascunho) && pRascunho >= 1 && pRascunho <= TOTAL_TELAS_CALIBRACAO
+          ? pRascunho
+          : 1
+      )
+    }
+    if (rascunho?.respostas) {
+      aplicarRespostas(rascunho.respostas)
+    }
+    carregadoRascunhoRef.current = true
+  }, [userId, estado, forcePreview, editandoManual])
+
+  useEffect(() => {
+    const aoEditar = async () => {
+      let dados = estado
+      if (!dados && accessToken) {
+        dados = await fetchCalibracaoMe(accessToken)
+      }
+      const ent = dados?.entrada || {}
+      const cen = dados?.cenario || {}
+      aplicarRespostas({
+        posicaoAtual: String(ent.posicao_atual || ''),
+        cargoExato: String(ent.cargo_exato || ''),
+        tamanhoEquipe: String(ent.tamanho_equipe || ''),
+        tempoCargo: String(ent.tempo_cargo || ''),
+        faixaIdade: String(ent.faixa_idade || ''),
+        salarioAtual: String(ent.salario_atual || ''),
+        salarioSonhos: String(ent.salario_sonhos || ''),
+        gatilhos30d: Array.isArray(ent.gatilhos_30d) ? ent.gatilhos_30d : [],
+        gatilhosOutro: String(ent.gatilhos_30d_outro || ''),
+        tentativas: Array.isArray(ent.tentativas_anteriores) ? ent.tentativas_anteriores : [],
+        pensamentoMedoCasa: String(ent.pensamento_medo_casa || ''),
+        vidaIdeal1Ano: String(ent.vida_ideal_1ano || ''),
+        proximoPasso: String(ent.proximo_passo || ''),
+        autorizacaoUso: Boolean(ent.autorizacao_uso),
+        tipoEmpresa: String(cen.tipo_empresa || ''),
+        setorAtuacao: String(cen.setor_atuacao || ''),
+        setorOutro: String(cen.setor_outro || ''),
+        nomeEmpresa: String(cen.nome_empresa || ''),
+      })
+      setErroMsg('')
+      setCalibrandoFinal(false)
+      setDispensadoLocal(false)
+      setEditandoManual(true)
+      setPasso(1)
+    }
+    window.addEventListener('anticaos:editar-calibracao', aoEditar)
+    return () => window.removeEventListener('anticaos:editar-calibracao', aoEditar)
+  }, [estado, accessToken])
+
+  const fecharSemSalvar = () => {
+    try {
+      window.localStorage.removeItem(chaveRascunhoCalibracao(userId ?? 'sem-conta'))
+    } catch {
+      // segue normal
+    }
+    setErroMsg('')
+    setEditandoManual(false)
+  }
+
+  useEffect(() => {
+    if (!editandoManual) return
+    const aoTeclar = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') fecharSemSalvar()
+    }
+    window.addEventListener('keydown', aoTeclar)
+    return () => window.removeEventListener('keydown', aoTeclar)
+  }, [editandoManual, userId])
+
+  useEffect(() => {
+    if (!carregadoRascunhoRef.current || editandoManual || calibrandoFinal || dispensadoLocal) return
+    if (estado?.entrada_concluida && estado?.cenario_concluido && !forcePreview) return
+    const idChave = userId ?? 'sem-conta'
+    const respostas: RespostasCalibracaoRascunho = {
+      posicaoAtual,
+      cargoExato,
+      tamanhoEquipe,
+      tempoCargo,
+      faixaIdade,
+      salarioAtual,
+      salarioSonhos,
+      gatilhos30d,
+      gatilhosOutro,
+      tentativas,
+      pensamentoMedoCasa,
+      vidaIdeal1Ano,
+      proximoPasso,
+      autorizacaoUso,
+      tipoEmpresa,
+      setorAtuacao,
+      setorOutro,
+      nomeEmpresa,
+    }
+    try {
+      window.localStorage.setItem(
+        chaveRascunhoCalibracao(idChave),
+        JSON.stringify({ passo, respostas })
+      )
+    } catch {
+      // navegador bloqueou localStorage: segue normal sem guardar
+    }
+  }, [
+    passo,
+    posicaoAtual,
+    cargoExato,
+    tamanhoEquipe,
+    tempoCargo,
+    faixaIdade,
+    salarioAtual,
+    salarioSonhos,
+    gatilhos30d,
+    gatilhosOutro,
+    tentativas,
+    pensamentoMedoCasa,
+    vidaIdeal1Ano,
+    proximoPasso,
+    autorizacaoUso,
+    tipoEmpresa,
+    setorAtuacao,
+    setorOutro,
+    nomeEmpresa,
+    userId,
+    estado,
+    forcePreview,
+    editandoManual,
+    calibrandoFinal,
+    dispensadoLocal,
+  ])
+
+  const soCenario = Boolean(
+    estado?.entrada_concluida && !estado?.cenario_concluido && !editandoManual
+  )
+
+  const mostrarGate =
+    editandoManual ||
+    (!dispensadoLocal &&
+      (deveBloquearEntradaComCalibracao({
+        estado,
+        pathname,
+        forcePreview,
+      }) ||
+        (deveAbrirCalibracaoCenario({ estado }) &&
+          deveBloquearEntradaComCalibracao({
+            estado: estado ? { ...estado, entrada_concluida: false } : null,
+            pathname,
+            forcePreview: false,
+          }))))
+
+  if (!mostrarGate) return null
+
+  // Barra de progresso já nasce em 15% na Tela 1 (efeito Zeigarnik)
+  const progressoPct = Math.min(
+    100,
+    Math.round(15 + ((passo - 1) / (TOTAL_TELAS_CALIBRACAO - 1)) * 85)
+  )
+
+  const salvarRascunho = (
+    proximoPassoNum: number,
+    parcial?: Partial<RespostasCalibracaoRascunho>
+  ) => {
+    if (editandoManual) return
+    const idChave = userId ?? 'sem-conta'
+    const respostas: RespostasCalibracaoRascunho = {
+      posicaoAtual,
+      cargoExato,
+      tamanhoEquipe,
+      tempoCargo,
+      faixaIdade,
+      salarioAtual,
+      salarioSonhos,
+      gatilhos30d,
+      gatilhosOutro,
+      tentativas,
+      pensamentoMedoCasa,
+      vidaIdeal1Ano,
+      proximoPasso,
+      autorizacaoUso,
+      tipoEmpresa,
+      setorAtuacao,
+      setorOutro,
+      nomeEmpresa,
+      ...parcial,
+    }
+    try {
+      window.localStorage.setItem(
+        chaveRascunhoCalibracao(idChave),
+        JSON.stringify({ passo: proximoPassoNum, respostas })
+      )
+    } catch {
+      // navegador bloqueou localStorage: segue normal sem guardar
+    }
+  }
+
+  const irParaPasso = (
+    proximo: number,
+    parcial?: Partial<RespostasCalibracaoRascunho>
+  ) => {
+    setErroMsg('')
+    salvarRascunho(proximo, parcial)
+    setPasso(proximo)
+  }
+
+  const avancarAutomatico = (
+    proximo: number,
+    parcial?: Partial<RespostasCalibracaoRascunho>
+  ) => {
+    setErroMsg('')
+    salvarRascunho(proximo, parcial)
+    setTimeout(() => {
+      setPasso(proximo)
+    }, 160)
+  }
+
+  const toggleLista = (lista: string[], item: string, setter: (v: string[]) => void) => {
+    setErroMsg('')
+    if (lista.includes(item)) {
+      setter(lista.filter((x) => x !== item))
+    } else {
+      setter([...lista, item])
+    }
+  }
+
+  const handleConcluir = async () => {
+    setErroMsg('')
+    if (!tipoEmpresa || !setorAtuacao) {
+      setErroMsg('Selecione as opções anteriores para continuar.')
+      return
+    }
+    if (setorAtuacao === 'outro' && !setorOutro.trim()) {
+      setErroMsg('Informe qual é o setor para continuar.')
+      return
+    }
+
+    setEnviando(true)
+    try {
+      const payload = {
+        posicao_atual: posicaoAtual,
+        cargo_exato: cargoExato.trim(),
+        tamanho_equipe: tamanhoEquipe,
+        tempo_cargo: tempoCargo,
+        faixa_idade: faixaIdade,
+        salario_atual: salarioAtual,
+        salario_sonhos: salarioSonhos,
+        gatilhos_30d: gatilhos30d,
+        gatilhos_30d_outro: gatilhos30d.includes('outro') ? gatilhosOutro.trim() : null,
+        tentativas_anteriores: tentativas,
+        pensamento_medo_casa: pensamentoMedoCasa.trim(),
+        vida_ideal_1ano: vidaIdeal1Ano.trim(),
+        proximo_passo: proximoPasso,
+        autorizacao_uso: autorizacaoUso,
+      }
+
+      if (!soCenario) {
+        const res = await fetch(
+          `${getAPIUrl()}calibracao/entrada`,
+          RequestBodyWithAuthHeader('POST', payload, null, accessToken)
+        )
+        if (!res.ok) {
+          const errBody = await res.json().catch(() => ({}))
+          setErroMsg(
+            typeof errBody?.detail === 'string'
+              ? errBody.detail
+              : 'Verifique os campos preenchidos e tente novamente.'
+          )
+          setEnviando(false)
+          return
+        }
+
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(
+            new CustomEvent('anticaos:calibracao:concluida', {
+              detail: { etapa: 'entrada' },
+            })
+          )
+        }
+      }
+
+      const payloadCenario = {
+        tipo_empresa: tipoEmpresa,
+        setor_atuacao: setorAtuacao,
+        setor_outro: setorAtuacao === 'outro' ? setorOutro.trim() : null,
+        nome_empresa: nomeEmpresa.trim() || null,
+      }
+
+      const resCenario = await fetch(
+        `${getAPIUrl()}calibracao/cenario`,
+        RequestBodyWithAuthHeader('POST', payloadCenario, null, accessToken)
+      )
+      if (!resCenario.ok) {
+        const errBody = await resCenario.json().catch(() => ({}))
+        setErroMsg(
+          typeof errBody?.detail === 'string'
+            ? errBody.detail
+            : 'Não foi possível salvar agora.'
+        )
+        setEnviando(false)
+        return
+      }
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('anticaos:calibracao:concluida', {
+            detail: { etapa: 'cenario' },
+          })
+        )
+      }
+
+      try {
+        window.localStorage.removeItem(chaveRascunhoCalibracao(userId ?? 'sem-conta'))
+      } catch {
+        // segue normal
+      }
+
+      setEntradaSalva(soCenario ? (estado?.entrada || null) : payload)
+      setCenarioSalvo(payloadCenario)
+      setEnviando(false)
+
+      if (editandoManual || soCenario) {
+        queryClient.setQueryData(chaveCalibracao, (antigo: any) => ({
+          ...(antigo || {}),
+          entrada_concluida: true,
+          cenario_concluido: true,
+          entrada: soCenario ? (antigo?.entrada || null) : payload,
+          cenario: payloadCenario,
+        }))
+        setEditandoManual(false)
+        setDispensadoLocal(true)
+        return
+      }
+
+      // 679: tela final com o trailer; a pessoa fecha quando quiser (Pular e continuar / Continuar)
+      setCalibrandoFinal(true)
+    } catch {
+      setErroMsg('Não foi possível salvar agora. Tente novamente.')
+      setEnviando(false)
+    }
+  }
+
+  const fecharBoasVindas = () => {
+    queryClient.setQueryData(chaveCalibracao, (antigo: any) => ({
+      ...(antigo || {}),
+      entrada_concluida: true,
+      cenario_concluido: true,
+      entrada: entradaSalva,
+      cenario: cenarioSalvo,
+    }))
+    setDispensadoLocal(true)
+  }
+
+  if (calibrandoFinal) {
+    return (
+      <section
+        aria-live="polite"
+        aria-labelledby="calibracao-video-final-titulo"
+        data-testid="calibracao-gancho-final"
+        className="fixed inset-0 bg-[#16181c]/95 backdrop-blur-md flex items-start sm:items-center justify-center overflow-y-auto px-4 py-6 z-40"
+      >
+        <div
+          data-testid="calibracao-video-final"
+          className="w-full max-w-3xl rounded-2xl bg-[#1d2025] border border-[#d4af37]/40 p-5 sm:p-7 text-center shadow-2xl space-y-4"
+        >
+          <div className="mx-auto w-11 h-11 rounded-2xl bg-[#d4af37]/15 border border-[#d4af37]/40 flex items-center justify-center text-[#d4af37]">
+            <Sparkles size={22} />
+          </div>
+          <h2 id="calibracao-video-final-titulo" className="text-xl font-bold text-[#f5efe0]">
+            Pronto! Veja o que vem agora.
+          </h2>
+          <p className="text-sm text-[#a3a9b3]">Em 1 minuto e meio, o caminho que você começa hoje.</p>
+          <video
+            className="hidden sm:block w-full rounded-xl bg-black"
+            controls
+            playsInline
+            preload="none"
+            poster={TRAILER_BOAS_VINDAS.capaHorizontal}
+            onEnded={() => setAssistiuTrailer(true)}
+            aria-label="Trailer do anticaos, 1 minuto e meio"
+          >
+            <source src={TRAILER_BOAS_VINDAS.horizontal} type="video/mp4" />
+          </video>
+          <video
+            className="sm:hidden mx-auto max-h-[62vh] w-auto max-w-full rounded-xl bg-black"
+            controls
+            playsInline
+            preload="none"
+            poster={TRAILER_BOAS_VINDAS.capaVertical}
+            onEnded={() => setAssistiuTrailer(true)}
+            aria-label="Trailer do anticaos, 1 minuto e meio"
+          >
+            <source src={TRAILER_BOAS_VINDAS.vertical} type="video/mp4" />
+          </video>
+          <button
+            type="button"
+            data-acao="continuar-boas-vindas"
+            onClick={fecharBoasVindas}
+            className={
+              assistiuTrailer
+                ? 'inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-[#a8841f] hover:bg-[#8a6a1f] text-white font-bold text-sm'
+                : 'inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-[#d4af37]/50 text-[#f5efe0] font-semibold text-sm hover:bg-white/5'
+            }
+          >
+            {assistiuTrailer ? 'Continuar' : 'Pular e continuar'} <ArrowRight size={16} />
+          </button>
+        </div>
+      </section>
+    )
+  }
+
+  return (
+    <section
+      aria-labelledby="calibracao-perfil-anticaos-titulo"
+      data-testid="calibracao-perfil-gate"
+      className="fixed inset-0 bg-[#e9ebee]/95 backdrop-blur-md flex items-start justify-center overflow-y-auto px-4 pt-20 pb-12"
+      style={{ zIndex: 'var(--z-interactive, 40)' }}
+    >
+      <div className="w-full max-w-xl bg-[#f4f6f8] rounded-2xl border border-[#d5d9de] shadow-xl p-5 sm:p-8 space-y-6">
+        {/* Topo: Título + Barra de Progresso */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-[#7a5f14]">
+              {TITULO_CALIBRACAO_ENTRADA}
+            </span>
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-semibold text-gray-500 tabular-nums">
+                Etapa {passo} de {TOTAL_TELAS_CALIBRACAO}
+              </span>
+              {editandoManual && (
+                <button
+                  type="button"
+                  data-acao="fechar-edicao-calibracao"
+                  onClick={fecharSemSalvar}
+                  className="text-xs font-medium text-gray-500 hover:text-gray-800 underline underline-offset-2 transition-colors"
+                >
+                  {t('anticaos.calibracao.fechar_sem_salvar')}
+                </button>
+              )}
+            </div>
+          </div>
+          <div className="w-full h-2 rounded-full bg-[#d5d9de] overflow-hidden">
+            <div
+              className="h-full bg-[#a8841f] transition-all duration-300"
+              style={{ width: `${progressoPct}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Mensagem de boas-vindas na Tela 1 */}
+        {passo === 1 && (
+          <div className="rounded-xl bg-white/80 border border-[#d5d9de] p-4 space-y-1.5">
+            <p className="text-sm text-gray-700 leading-relaxed">
+              {TEXTO_ABERTURA_ENTRADA}
+            </p>
+            <p className="text-xs font-bold text-[#7a5f14]">
+              — {ASSINATURA_ABERTURA_ENTRADA}
+            </p>
+          </div>
+        )}
+
+        {/* TELA 1: Posição hoje */}
+        {passo === 1 && (
+          <div className="space-y-4">
+            <h1
+              id="calibracao-perfil-anticaos-titulo"
+              className="text-lg sm:text-xl font-bold text-gray-900"
+            >
+              Qual frase descreve melhor a sua posição hoje?
+            </h1>
+            <div className="grid grid-cols-1 gap-2.5">
+              {OPCOES_POSICAO_ATUAL.map((op) => {
+                const ativo = posicaoAtual === op.key
+                return (
+                  <button
+                    key={op.key}
+                    type="button"
+                    onClick={() => {
+                      setPosicaoAtual(op.key)
+                      avancarAutomatico(2, { posicaoAtual: op.key })
+                    }}
+                    className={`w-full min-h-[52px] px-4 py-3 rounded-xl text-start text-sm font-medium transition-all flex items-center justify-between gap-3 border ${
+                      ativo
+                        ? 'bg-[#f3e9cf] border-[#a8841f] text-gray-900 font-semibold shadow-sm'
+                        : 'bg-white hover:bg-gray-50 border-[#d5d9de] text-gray-800'
+                    }`}
+                  >
+                    <span>{op.label}</span>
+                    {ativo && <Check size={16} className="text-[#7a5f14] shrink-0" />}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* TELA 2: Cargo exato */}
+        {passo === 2 && (
+          <div className="space-y-4">
+            <h1
+              id="calibracao-perfil-anticaos-titulo"
+              className="text-lg sm:text-xl font-bold text-gray-900"
+            >
+              Qual é o nome exato do seu cargo?
+            </h1>
+            <input
+              type="text"
+              value={cargoExato}
+              onChange={(e) => {
+                setErroMsg('')
+                setCargoExato(e.target.value)
+              }}
+              placeholder="Ex.: Coordenador de Manutenção"
+              className="w-full min-h-[50px] px-4 py-3 rounded-xl border border-[#d5d9de] bg-white text-gray-900 placeholder:text-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-[#a8841f]"
+              autoFocus
+            />
+            <div className="flex items-center justify-between pt-2">
+              <button
+                type="button"
+                onClick={() => irParaPasso(1)}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-600 hover:text-gray-900 px-3 py-2"
+              >
+                <ArrowLeft size={14} /> Voltar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (cargoExato.trim().length < 2) {
+                    setErroMsg('Digite o nome do seu cargo para continuar.')
+                    return
+                  }
+                  irParaPasso(3, { cargoExato })
+                }}
+                className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-[#a8841f] hover:bg-[#8a6a1f] text-white font-semibold text-sm transition-colors"
+              >
+                Continuar <ArrowRight size={16} />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* TELA 3: Tamanho da equipe */}
+        {passo === 3 && (
+          <div className="space-y-4">
+            <h1
+              id="calibracao-perfil-anticaos-titulo"
+              className="text-lg sm:text-xl font-bold text-gray-900"
+            >
+              Quantas pessoas respondem diretamente a você?
+            </h1>
+            <div className="grid grid-cols-1 gap-2.5">
+              {OPCOES_TAMANHO_EQUIPE.map((op) => {
+                const ativo = tamanhoEquipe === op.key
+                return (
+                  <button
+                    key={op.key}
+                    type="button"
+                    onClick={() => {
+                      setTamanhoEquipe(op.key)
+                      avancarAutomatico(4, { tamanhoEquipe: op.key })
+                    }}
+                    className={`w-full min-h-[52px] px-4 py-3 rounded-xl text-start text-sm font-medium transition-all flex items-center justify-between gap-3 border ${
+                      ativo
+                        ? 'bg-[#f3e9cf] border-[#a8841f] text-gray-900 font-semibold'
+                        : 'bg-white hover:bg-gray-50 border-[#d5d9de] text-gray-800'
+                    }`}
+                  >
+                    <span>{op.label}</span>
+                    {ativo && <Check size={16} className="text-[#7a5f14] shrink-0" />}
+                  </button>
+                )
+              })}
+            </div>
+            <button
+              type="button"
+              onClick={() => irParaPasso(2)}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-600 hover:text-gray-900 px-2 py-1"
+            >
+              <ArrowLeft size={14} /> Voltar
+            </button>
+          </div>
+        )}
+
+        {/* TELA 4: Tempo no cargo */}
+        {passo === 4 && (
+          <div className="space-y-4">
+            <h1
+              id="calibracao-perfil-anticaos-titulo"
+              className="text-lg sm:text-xl font-bold text-gray-900"
+            >
+              Há quanto tempo você está nesse cargo?
+            </h1>
+            <div className="grid grid-cols-1 gap-2.5">
+              {OPCOES_TEMPO_CARGO.map((op) => {
+                const ativo = tempoCargo === op.key
+                return (
+                  <button
+                    key={op.key}
+                    type="button"
+                    onClick={() => {
+                      setTempoCargo(op.key)
+                      avancarAutomatico(5, { tempoCargo: op.key })
+                    }}
+                    className={`w-full min-h-[52px] px-4 py-3 rounded-xl text-start text-sm font-medium transition-all flex items-center justify-between gap-3 border ${
+                      ativo
+                        ? 'bg-[#f3e9cf] border-[#a8841f] text-gray-900 font-semibold'
+                        : 'bg-white hover:bg-gray-50 border-[#d5d9de] text-gray-800'
+                    }`}
+                  >
+                    <span>{op.label}</span>
+                    {ativo && <Check size={16} className="text-[#7a5f14] shrink-0" />}
+                  </button>
+                )
+              })}
+            </div>
+            <button
+              type="button"
+              onClick={() => irParaPasso(3)}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-600 hover:text-gray-900 px-2 py-1"
+            >
+              <ArrowLeft size={14} /> Voltar
+            </button>
+          </div>
+        )}
+
+        {/* TELA 5: Idade */}
+        {passo === 5 && (
+          <div className="space-y-4">
+            <h1
+              id="calibracao-perfil-anticaos-titulo"
+              className="text-lg sm:text-xl font-bold text-gray-900"
+            >
+              Qual é a sua idade?
+            </h1>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {OPCOES_FAIXA_IDADE.map((op) => {
+                const ativo = faixaIdade === op.key
+                return (
+                  <button
+                    key={op.key}
+                    type="button"
+                    onClick={() => {
+                      setFaixaIdade(op.key)
+                      avancarAutomatico(6, { faixaIdade: op.key })
+                    }}
+                    className={`w-full min-h-[52px] px-4 py-3 rounded-xl text-start text-sm font-medium transition-all flex items-center justify-between gap-3 border ${
+                      ativo
+                        ? 'bg-[#f3e9cf] border-[#a8841f] text-gray-900 font-semibold'
+                        : 'bg-white hover:bg-gray-50 border-[#d5d9de] text-gray-800'
+                    }`}
+                  >
+                    <span>{op.label}</span>
+                    {ativo && <Check size={16} className="text-[#7a5f14] shrink-0" />}
+                  </button>
+                )
+              })}
+            </div>
+            <button
+              type="button"
+              onClick={() => irParaPasso(4)}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-600 hover:text-gray-900 px-2 py-1"
+            >
+              <ArrowLeft size={14} /> Voltar
+            </button>
+          </div>
+        )}
+
+        {/* TELA 6: Salário dos Sonhos */}
+        {passo === 6 && (
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <h1
+                id="calibracao-perfil-anticaos-titulo"
+                className="text-lg sm:text-xl font-bold text-gray-900"
+              >
+                Qual seria o seu salário dos <strong className="font-bold underline">SONHOS</strong> por mês?
+              </h1>
+              <p className="text-xs text-gray-500 flex items-center gap-1.5">
+                <Lock size={13} className="text-[#7a5f14]" />
+                100% confidencial: só a equipe anticaos vê.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {OPCOES_SALARIO_SONHOS.map((op) => {
+                const ativo = salarioSonhos === op.key
+                return (
+                  <button
+                    key={op.key}
+                    type="button"
+                    onClick={() => {
+                      setSalarioSonhos(op.key)
+                      avancarAutomatico(7)
+                    }}
+                    className={`w-full min-h-[50px] px-4 py-3 rounded-xl text-start text-sm font-medium transition-all flex items-center justify-between gap-3 border ${
+                      ativo
+                        ? 'bg-[#f3e9cf] border-[#a8841f] text-gray-900 font-semibold'
+                        : 'bg-white hover:bg-gray-50 border-[#d5d9de] text-gray-800'
+                    }`}
+                  >
+                    <span>{op.label}</span>
+                    {ativo && <Check size={16} className="text-[#7a5f14] shrink-0" />}
+                  </button>
+                )
+              })}
+            </div>
+            <button
+              type="button"
+              onClick={() => setPasso(5)}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-600 hover:text-gray-900 px-2 py-1"
+            >
+              <ArrowLeft size={14} /> Voltar
+            </button>
+          </div>
+        )}
+
+        {/* TELA 7: Salário Hoje */}
+        {passo === 7 && (
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <h1
+                id="calibracao-perfil-anticaos-titulo"
+                className="text-lg sm:text-xl font-bold text-gray-900"
+              >
+                E hoje, em qual faixa está o seu salário por mês?
+              </h1>
+              <p className="text-xs text-gray-500 flex items-center gap-1.5">
+                <Lock size={13} className="text-[#7a5f14]" />
+                100% confidencial: só a equipe anticaos vê.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {OPCOES_SALARIO_ATUAL.map((op) => {
+                const ativo = salarioAtual === op.key
+                return (
+                  <button
+                    key={op.key}
+                    type="button"
+                    onClick={() => {
+                      setSalarioAtual(op.key)
+                      avancarAutomatico(8)
+                    }}
+                    className={`w-full min-h-[50px] px-4 py-3 rounded-xl text-start text-sm font-medium transition-all flex items-center justify-between gap-3 border ${
+                      ativo
+                        ? 'bg-[#f3e9cf] border-[#a8841f] text-gray-900 font-semibold'
+                        : 'bg-white hover:bg-gray-50 border-[#d5d9de] text-gray-800'
+                    }`}
+                  >
+                    <span>{op.label}</span>
+                    {ativo && <Check size={16} className="text-[#7a5f14] shrink-0" />}
+                  </button>
+                )
+              })}
+            </div>
+            <button
+              type="button"
+              onClick={() => setPasso(6)}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-600 hover:text-gray-900 px-2 py-1"
+            >
+              <ArrowLeft size={14} /> Voltar
+            </button>
+          </div>
+        )}
+
+        {/* TELA 8: Gatilhos dos últimos 30 dias */}
+        {passo === 8 && (
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <h1
+                id="calibracao-perfil-anticaos-titulo"
+                className="text-lg sm:text-xl font-bold text-gray-900"
+              >
+                O que aconteceu com você nos últimos 30 dias que te levou a entrar no Kit?
+              </h1>
+              <p className="text-xs text-gray-500">
+                Marque quantas opções quiser.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 gap-2">
+              {OPCOES_GATILHOS_30D.map((op) => {
+                const marcado = gatilhos30d.includes(op.key)
+                return (
+                  <button
+                    key={op.key}
+                    type="button"
+                    onClick={() => toggleLista(gatilhos30d, op.key, setGatilhos30d)}
+                    className={`w-full min-h-[48px] px-4 py-2.5 rounded-xl text-start text-sm transition-all flex items-center gap-3 border ${
+                      marcado
+                        ? 'bg-[#f3e9cf] border-[#a8841f] text-gray-900 font-semibold'
+                        : 'bg-white hover:bg-gray-50 border-[#d5d9de] text-gray-800'
+                    }`}
+                  >
+                    <span
+                      className={`w-5 h-5 rounded flex items-center justify-center border shrink-0 ${
+                        marcado
+                          ? 'bg-[#a8841f] border-[#a8841f] text-white'
+                          : 'border-gray-300 bg-white'
+                      }`}
+                    >
+                      {marcado && <Check size={13} />}
+                    </span>
+                    <span>{op.label}</span>
+                  </button>
+                )
+              })}
+            </div>
+
+            {gatilhos30d.includes('outro') && (
+              <input
+                type="text"
+                value={gatilhosOutro}
+                onChange={(e) => setGatilhosOutro(e.target.value)}
+                placeholder="O quê?"
+                className="w-full min-h-[46px] px-4 py-2.5 rounded-xl border border-[#d5d9de] bg-white text-gray-900 placeholder:text-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-[#a8841f]"
+                autoFocus
+              />
+            )}
+
+            <div className="flex items-center justify-between pt-2">
+              <button
+                type="button"
+                onClick={() => irParaPasso(7)}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-600 hover:text-gray-900 px-3 py-2"
+              >
+                <ArrowLeft size={14} /> Voltar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (gatilhos30d.length === 0) {
+                    setErroMsg('Marque pelo menos uma opção para continuar.')
+                    return
+                  }
+                  if (gatilhos30d.includes('outro') && !gatilhosOutro.trim()) {
+                    setErroMsg('Descreva o que aconteceu no campo "O quê?".')
+                    return
+                  }
+                  irParaPasso(9, { gatilhos30d, gatilhosOutro })
+                }}
+                className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-[#a8841f] hover:bg-[#8a6a1f] text-white font-semibold text-sm transition-colors"
+              >
+                Continuar <ArrowRight size={16} />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* TELA 9: Tentativas anteriores */}
+        {passo === 9 && (
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <h1
+                id="calibracao-perfil-anticaos-titulo"
+                className="text-lg sm:text-xl font-bold text-gray-900"
+              >
+                O que você já tentou fazer antes para resolver isso?
+              </h1>
+              <p className="text-xs text-gray-500">
+                Marque quantas opções quiser.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 gap-2">
+              {OPCOES_TENTATIVAS_ANTERIORES.map((op) => {
+                const marcado = tentativas.includes(op.key)
+                return (
+                  <button
+                    key={op.key}
+                    type="button"
+                    onClick={() => toggleLista(tentativas, op.key, setTentativas)}
+                    className={`w-full min-h-[48px] px-4 py-2.5 rounded-xl text-start text-sm transition-all flex items-center gap-3 border ${
+                      marcado
+                        ? 'bg-[#f3e9cf] border-[#a8841f] text-gray-900 font-semibold'
+                        : 'bg-white hover:bg-gray-50 border-[#d5d9de] text-gray-800'
+                    }`}
+                  >
+                    <span
+                      className={`w-5 h-5 rounded flex items-center justify-center border shrink-0 ${
+                        marcado
+                          ? 'bg-[#a8841f] border-[#a8841f] text-white'
+                          : 'border-gray-300 bg-white'
+                      }`}
+                    >
+                      {marcado && <Check size={13} />}
+                    </span>
+                    <span>{op.label}</span>
+                  </button>
+                )
+              })}
+            </div>
+
+            <div className="flex items-center justify-between pt-2">
+              <button
+                type="button"
+                onClick={() => irParaPasso(8)}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-600 hover:text-gray-900 px-3 py-2"
+              >
+                <ArrowLeft size={14} /> Voltar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (tentativas.length === 0) {
+                    setErroMsg('Marque pelo menos uma opção para continuar.')
+                    return
+                  }
+                  irParaPasso(10, { tentativas })
+                }}
+                className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-[#a8841f] hover:bg-[#8a6a1f] text-white font-semibold text-sm transition-colors"
+              >
+                Continuar <ArrowRight size={16} />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* TELA 10: A Sua Cabeça (2 perguntas abertas) */}
+        {passo === 10 && (
+          <div className="space-y-4">
+            <div className="rounded-xl bg-[#f3e9cf]/60 border border-[#a8841f]/30 p-3.5 space-y-1">
+              <p className="text-xs sm:text-sm font-medium text-gray-800">
+                Escreva do seu jeito, como se estivesse mandando um áudio pra um amigo. Não existe resposta certa.
+              </p>
+              <p className="text-xs text-[#7a5f14] flex items-center gap-1.5 font-medium">
+                <Mic size={13} className="shrink-0" />
+                Dica: no celular, você pode tocar no microfone do teclado e falar!
+              </p>
+              <p className="text-xs text-gray-600" data-testid="calibracao-aviso-campos-livres">
+                Não escreva aqui dados de saúde nem nomes de outras pessoas.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <label
+                htmlFor="calibracao-pensamento-medo"
+                className="block text-sm font-bold text-gray-900"
+              >
+                Qual pensamento ou medo sobre o trabalho fica voltando na sua cabeça, mesmo quando você está em casa?
+              </label>
+              <textarea
+                id="calibracao-pensamento-medo"
+                rows={3}
+                value={pensamentoMedoCasa}
+                onChange={(e) => {
+                  setErroMsg('')
+                  setPensamentoMedoCasa(e.target.value)
+                }}
+                placeholder="Escreva com as suas palavras..."
+                className="w-full p-3.5 rounded-xl border border-[#d5d9de] bg-white text-gray-900 placeholder:text-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-[#a8841f]"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label
+                htmlFor="calibracao-vida-ideal"
+                className="block text-sm font-bold text-gray-900"
+              >
+                Se a gente conversar daqui a 1 ano e tudo tiver dado certo na sua carreira, como seria a sua rotina ideal?
+              </label>
+              <textarea
+                id="calibracao-vida-ideal"
+                rows={3}
+                value={vidaIdeal1Ano}
+                onChange={(e) => {
+                  setErroMsg('')
+                  setVidaIdeal1Ano(e.target.value)
+                }}
+                placeholder="Como você quer estar daqui a 1 ano..."
+                className="w-full p-3.5 rounded-xl border border-[#d5d9de] bg-white text-gray-900 placeholder:text-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-[#a8841f]"
+              />
+            </div>
+
+            <div className="flex items-center justify-between pt-2">
+              <button
+                type="button"
+                onClick={() => irParaPasso(9)}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-600 hover:text-gray-900 px-3 py-2"
+              >
+                <ArrowLeft size={14} /> Voltar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (pensamentoMedoCasa.trim().length < 3 || vidaIdeal1Ano.trim().length < 3) {
+                    setErroMsg('Preencha os dois campos acima para continuar.')
+                    return
+                  }
+                  irParaPasso(11, { pensamentoMedoCasa, vidaIdeal1Ano })
+                }}
+                className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-[#a8841f] hover:bg-[#8a6a1f] text-white font-semibold text-sm transition-colors"
+              >
+                Continuar <ArrowRight size={16} />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* TELA 11: Próximo Passo + Autorização */}
+        {passo === 11 && (
+          <div className="space-y-5">
+            <h1
+              id="calibracao-perfil-anticaos-titulo"
+              className="text-lg sm:text-xl font-bold text-gray-900"
+            >
+              Se o André oferecesse uma ajuda mais próxima, qual você escolheria?
+            </h1>
+            <div className="grid grid-cols-1 gap-2.5">
+              {OPCOES_PROXIMO_PASSO.map((op) => {
+                const ativo = proximoPasso === op.key
+                return (
+                  <button
+                    key={op.key}
+                    type="button"
+                    onClick={() => {
+                      setErroMsg('')
+                      setProximoPasso(op.key)
+                    }}
+                    className={`w-full min-h-[50px] px-4 py-3 rounded-xl text-start text-sm font-medium transition-all flex items-center justify-between gap-3 border ${
+                      ativo
+                        ? 'bg-[#f3e9cf] border-[#a8841f] text-gray-900 font-semibold'
+                        : 'bg-white hover:bg-gray-50 border-[#d5d9de] text-gray-800'
+                    }`}
+                  >
+                    <span>{op.label}</span>
+                    {ativo && <Check size={16} className="text-[#7a5f14] shrink-0" />}
+                  </button>
+                )
+              })}
+            </div>
+
+            <label className="flex items-start gap-3 p-3.5 rounded-xl bg-white border border-[#d5d9de] cursor-pointer">
+              <input
+                type="checkbox"
+                checked={autorizacaoUso}
+                onChange={(e) => {
+                  setErroMsg('')
+                  setAutorizacaoUso(e.target.checked)
+                }}
+                className="mt-0.5 h-4 w-4 accent-[#a8841f] rounded"
+              />
+              <span className="text-xs text-gray-700 leading-relaxed">
+                {TEXTO_AUTORIZACAO_ANONIMA}
+              </span>
+            </label>
+
+            <div className="flex items-center justify-between gap-3 pt-1">
+              <button
+                type="button"
+                onClick={() => irParaPasso(10)}
+                disabled={enviando}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-600 hover:text-gray-900 px-3 py-2"
+              >
+                <ArrowLeft size={14} /> Voltar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!proximoPasso) {
+                    setErroMsg('Selecione uma opção para continuar.')
+                    return
+                  }
+                  irParaPasso(12, { proximoPasso, autorizacaoUso })
+                }}
+                className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-[#a8841f] hover:bg-[#8a6a1f] text-white font-semibold text-sm transition-colors"
+              >
+                Continuar <ArrowRight size={16} />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* TELA 12: Tipo de empresa */}
+        {passo === 12 && (
+          <div className="space-y-4">
+            <h1
+              id="calibracao-perfil-anticaos-titulo"
+              className="text-lg sm:text-xl font-bold text-gray-900"
+            >
+              Em que tipo de empresa você trabalha?
+            </h1>
+            <div className="grid grid-cols-1 gap-2">
+              {OPCOES_TIPO_EMPRESA.map((op) => {
+                const ativo = tipoEmpresa === op.key
+                return (
+                  <button
+                    key={op.key}
+                    type="button"
+                    onClick={() => {
+                      setTipoEmpresa(op.key)
+                      avancarAutomatico(13, { tipoEmpresa: op.key })
+                    }}
+                    className={`w-full min-h-[48px] px-4 py-2.5 rounded-xl text-start text-sm font-medium transition-all flex items-center justify-between border ${
+                      ativo
+                        ? 'bg-[#f3e9cf] border-[#a8841f] text-gray-900 font-semibold'
+                        : 'bg-white hover:bg-gray-50 border-[#d5d9de] text-gray-800'
+                    }`}
+                  >
+                    <span>{op.label}</span>
+                    {ativo && <Check size={16} className="text-[#7a5f14]" />}
+                  </button>
+                )
+              })}
+            </div>
+            {!soCenario && (
+              <button
+                type="button"
+                onClick={() => irParaPasso(11)}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-600 hover:text-gray-900 px-2 py-1"
+              >
+                <ArrowLeft size={14} /> Voltar
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* TELA 13: Setor */}
+        {passo === 13 && (
+          <div className="space-y-3.5">
+            <h1
+              id="calibracao-perfil-anticaos-titulo"
+              className="text-lg sm:text-xl font-bold text-gray-900"
+            >
+              Em qual setor você trabalha?
+            </h1>
+            <div className="grid grid-cols-2 gap-2">
+              {OPCOES_SETOR_ATUACAO.map((op) => {
+                const ativo = setorAtuacao === op.key
+                return (
+                  <button
+                    key={op.key}
+                    type="button"
+                    onClick={() => {
+                      setSetorAtuacao(op.key)
+                      setErroMsg('')
+                      if (op.key !== 'outro') {
+                        avancarAutomatico(14, { setorAtuacao: op.key })
+                      }
+                    }}
+                    className={`w-full min-h-[46px] px-3.5 py-2 rounded-xl text-start text-sm font-medium transition-all flex items-center justify-between border ${
+                      ativo
+                        ? 'bg-[#f3e9cf] border-[#a8841f] text-gray-900 font-semibold'
+                        : 'bg-white hover:bg-gray-50 border-[#d5d9de] text-gray-800'
+                    }`}
+                  >
+                    <span className="truncate">{op.label}</span>
+                    {ativo && <Check size={15} className="text-[#7a5f14] shrink-0" />}
+                  </button>
+                )
+              })}
+            </div>
+
+            {setorAtuacao === 'outro' && (
+              <div className="space-y-2 pt-1">
+                <input
+                  type="text"
+                  value={setorOutro}
+                  onChange={(e) => setSetorOutro(e.target.value)}
+                  placeholder="Qual?"
+                  className="w-full min-h-[46px] px-4 py-2.5 rounded-xl border border-[#d5d9de] bg-white text-gray-900 placeholder:text-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-[#a8841f]"
+                  autoFocus
+                />
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!setorOutro.trim()) {
+                        setErroMsg('Informe qual é o setor para continuar.')
+                        return
+                      }
+                      irParaPasso(14, { setorAtuacao, setorOutro })
+                    }}
+                    className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#a8841f] hover:bg-[#8a6a1f] text-white font-semibold text-xs"
+                  >
+                    Continuar <ArrowRight size={14} />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={() => irParaPasso(12)}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-600 hover:text-gray-900 px-2 py-1"
+            >
+              <ArrowLeft size={14} /> Voltar
+            </button>
+          </div>
+        )}
+
+        {/* TELA 14: Nome da empresa + Destravar */}
+        {passo === 14 && (
+          <div className="space-y-4">
+            <h1
+              id="calibracao-perfil-anticaos-titulo"
+              className="text-lg sm:text-xl font-bold text-gray-900"
+            >
+              Qual é o nome da empresa onde você trabalha?
+            </h1>
+            <input
+              type="text"
+              value={nomeEmpresa}
+              onChange={(e) => setNomeEmpresa(e.target.value)}
+              placeholder="Ex.: Ambev, Petrobras, Hospital X..."
+              className="w-full min-h-[48px] px-4 py-3 rounded-xl border border-[#d5d9de] bg-white text-gray-900 placeholder:text-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-[#a8841f]"
+              autoFocus
+            />
+            <p className="text-xs text-gray-600 flex items-center gap-1.5">
+              <Lock size={13} className="text-[#7a5f14] shrink-0" />
+              {TEXTO_CONFIDENCIALIDADE_EMPRESA}
+            </p>
+            <div className="flex items-center justify-between gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => irParaPasso(13)}
+                disabled={enviando}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-600 hover:text-gray-900 px-3 py-2"
+              >
+                <ArrowLeft size={14} /> Voltar
+              </button>
+              <button
+                type="button"
+                onClick={handleConcluir}
+                disabled={enviando}
+                className="flex-1 inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-[#a8841f] hover:bg-[#8a6a1f] text-white font-bold text-sm shadow-md transition-colors disabled:opacity-60"
+              >
+                {enviando ? (
+                  <Loader2 size={18} className="animate-spin" />
+                ) : (
+                  <Unlock size={18} />
+                )}
+                Destravar Meu Kit Agora
+              </button>
+            </div>
+          </div>
+        )}
+
+        {erroMsg && (
+          <p role="alert" className="text-xs font-semibold text-red-600 text-center">
+            {erroMsg}
+          </p>
+        )}
+      </div>
+    </section>
+  )
+}
+
+export default CalibracaoPerfilGate
